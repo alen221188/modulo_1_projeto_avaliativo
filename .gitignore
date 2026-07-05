@@ -1,0 +1,18 @@
+# Variáveis de ambiente e credenciais
+.env
+
+# Ambientes virtuais
+.venv/
+venv/
+ENV/
+
+# Arquivos de dados e backups
+*.zip
+*.csv
+data/
+
+# Arquivos temporários do Python
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
