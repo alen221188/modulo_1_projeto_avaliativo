@@ -1,61 +1,89 @@
-import os
-from sqlalchemy import text
-from banco import obter_engine, executar_query
+"""
+inicializar_banco.py
+---------------------
+Prepara o banco de dados do projeto. Rode UMA vez, antes do 1_extrair.py.
 
-# Nome do banco de dados que queremos criar para o nosso projeto
-NOME_BANCO_PROJETO = "viagens_servico"
+TRABALHO A: cria o banco 'transparencia' (se ainda nao existir).
+TRABALHO B: cria as 8 tabelas dentro dele (rodando o 0_criar_banco.sql).
+"""
 
-def banco_existe():
-    """
-    Verifica se o banco de dados do projeto já existe no PostgreSQL.
-    """
-    engine = obter_engine("postgres")
-    query = f"SELECT 1 FROM pg_database WHERE datname = '{NOME_BANCO_PROJETO}';"
-    
-    with engine.connect() as conexao:
-        resultado = conexao.execute(text(query)).fetchone()
-        return resultado is not None
+import sys
+from pathlib import Path
 
-def criar_banco_de_dados():
+# Dica ao Python: procure modulos tambem na RAIZ do projeto (uma pasta acima
+# desta). Assim conseguimos importar o config.py e o pacote database.
+RAIZ = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(RAIZ))
+
+import psycopg2
+
+from config import POSTGRES_CONFIG
+from database.banco import conectar, executar
+
+# Onde esta o arquivo SQL com o CREATE das tabelas (mesma pasta deste script).
+CAMINHO_SQL = Path(__file__).resolve().parent / "0_criar_banco.sql"
+
+
+def criar_banco_se_nao_existir():
     """
-    Cria o banco de dados do projeto se ele não existir.
+    TRABALHO A.
+    Conecta no banco administrativo 'postgres' (que sempre existe) e cria o
+    banco do projeto caso ele ainda nao exista.
     """
-    if banco_existe():
-        print(f"O banco de dados '{NOME_BANCO_PROJETO}' já existe.")
+    nome_banco = POSTGRES_CONFIG["dbname"]
+
+    # 1. Conexao especial ao banco 'postgres' (copiamos o config trocando so o
+    #    dbname), porque nao da para conectar no 'transparencia' antes de existir.
+    config_admin = {**POSTGRES_CONFIG, "dbname": "postgres"}
+    conexao = psycopg2.connect(**config_admin)
+
+    # 2. Ligar o autocommit: CREATE DATABASE nao pode rodar dentro de transacao.
+    conexao.autocommit = True
+
+    cursor = conexao.cursor()
+
+    # 3. Perguntar ao Postgres se o banco do projeto ja existe.
+    cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s;", (nome_banco,))
+    ja_existe = cursor.fetchone() is not None
+
+    # 4. Criar somente se ainda nao existir (idempotente).
+    if ja_existe:
+        print(f"Banco '{nome_banco}' ja existe. Nada a fazer.")
     else:
-        print(f"Criando o banco de dados '{NOME_BANCO_PROJETO}'...")
-        executar_query(f"CREATE DATABASE {NOME_BANCO_PROJETO};", dbname="postgres", autocommit=True)
-        print(f"Banco de dados '{NOME_BANCO_PROJETO}' criado com sucesso!")
+        cursor.execute(f'CREATE DATABASE "{nome_banco}";')
+        print(f"Banco '{nome_banco}' criado com sucesso.")
+
+    # 5. Fechar cursor e conexao.
+    cursor.close()
+    conexao.close()
+
 
 def criar_tabelas():
     """
-    Lê o arquivo '0_criar_banco.sql' local e cria as tabelas no banco de dados.
+    TRABALHO B.
+    Conecta no banco do projeto, le o 0_criar_banco.sql e executa (cria as tabelas).
     """
-    # Usamos o caminho absoluto da pasta deste script para achar o arquivo SQL local
-    caminho_diretorio = os.path.dirname(os.path.abspath(__file__))
-    caminho_sql = os.path.join(caminho_diretorio, "0_criar_banco.sql")
-    
-    if not os.path.exists(caminho_sql):
-        print(f"Erro: O arquivo {caminho_sql} não foi encontrado.")
-        return
-        
-    print(f"Lendo e executando o arquivo {caminho_sql} no banco '{NOME_BANCO_PROJETO}'...")
-    
-    with open(caminho_sql, "r", encoding="utf-8") as arquivo:
-        script_sql = arquivo.read()
-        
-    engine = obter_engine(NOME_BANCO_PROJETO)
-    with engine.begin() as conexao:
-        conexao.execute(text(script_sql))
-        
-    print("Todas as tabelas (Raw e Silver) foram criadas com sucesso!")
+    # 1. Ler o conteudo do arquivo 0_criar_banco.sql (texto puro).
+    script_sql = CAMINHO_SQL.read_text(encoding="utf-8")
+
+    # 2. Conectar no banco do projeto (aqui usamos o conectar() do banco.py,
+    #    que ja aponta para o 'transparencia' definido no config).
+    conexao = conectar()
+
+    # 3. Executar o script inteiro de uma vez (varios CREATE TABLE seguidos).
+    executar(conexao, script_sql)
+
+    # 4. Fechar a conexao.
+    conexao.close()
+    print("Tabelas (Raw e Silver) criadas/verificadas.")
+
 
 if __name__ == "__main__":
-    print("=== INICIALIZANDO O BANCO DE DADOS E TABELAS (MODULAR) ===")
+    print("=== Inicializando banco e tabelas ===")
     try:
-        criar_banco_de_dados()
-        criar_tabelas()
-        print("\nPronto! Tudo configurado com sucesso no PostgreSQL local.")
-    except Exception as e:
-        print(f"\nErro durante a inicialização: {e}")
-        print("Dica: Verifique se o serviço do PostgreSQL está rodando e se sua senha no arquivo .env está correta.")
+        criar_banco_se_nao_existir()  # TRABALHO A
+        criar_tabelas()               # TRABALHO B
+        print("Pronto! Banco e tabelas configurados com sucesso.")
+    except Exception as erro:
+        print(f"Erro na inicializacao: {erro}")
+        print("Dica: o PostgreSQL esta rodando? A senha no .env esta correta?")

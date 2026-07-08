@@ -1,53 +1,46 @@
-import os
-import sys
-from sqlalchemy import create_engine, text
-import pandas as pd
+"""
+banco.py
+--------
+"""
 
-# Adiciona o diretório raiz do projeto ao sys.path para conseguir importar o config.py
-# __file__ é o caminho deste arquivo (database/banco.py)
-# os.path.dirname(__file__) é a pasta (database/)
-# os.path.dirname(os.path.dirname(__file__)) é a pasta raiz (Projeto_analise_de_dados _postgreesql/)
-diretorio_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if diretorio_raiz not in sys.path:
-    sys.path.append(diretorio_raiz)
+import psycopg2
+from psycopg2 import Error
 
-from config import DB_CONFIG
+from config import POSTGRES_CONFIG
 
-def obter_engine(dbname=None):
-    """
-    Cria e retorna uma engine do SQLAlchemy para conexão com o PostgreSQL.
-    """
-    usuario = DB_CONFIG["user"]
-    senha = DB_CONFIG["password"]
-    host = DB_CONFIG["host"]
-    porta = DB_CONFIG["port"]
-    
-    banco = dbname if dbname else DB_CONFIG["database"]
-    url_conexao = f"postgresql://{usuario}:{senha}@{host}:{porta}/{banco}"
-    
-    return create_engine(url_conexao)
 
-def executar_query(query_sql, dbname=None, autocommit=False):
+def conectar():
     """
-    Executa uma instrução SQL no banco de dados.
+    Abre uma conexao com o PostgreSQL (no database configurado no .env) e a
+    retorna. Em caso de falha, lanca um erro claro (tratado por quem chama).
     """
-    engine = obter_engine(dbname)
-    
-    with engine.connect() as conexao:
-        if autocommit:
-            conexao = conexao.execution_options(isolation_level="AUTOCOMMIT")
-        conexao.execute(text(query_sql))
+    try:
+        return psycopg2.connect(**POSTGRES_CONFIG)
+    except Error as erro:
+        raise RuntimeError(
+            f"Nao foi possivel conectar ao PostgreSQL em "
+            f"{POSTGRES_CONFIG['host']}:{POSTGRES_CONFIG['port']} / database "
+            f"'{POSTGRES_CONFIG['dbname']}'. Verifique o .env e se voce ja rodou "
+            f"o script '0_criar_banco.sql'. Detalhe: {erro}"
+        )
 
-def inserir_em_lote(df, nome_tabela, dbname=None, se_existir="append"):
+
+def executar(conexao, sql):
+    """Executa um comando SQL simples (CREATE, DROP, INSERT...SELECT, etc.)."""
+    cursor = conexao.cursor()
+    cursor.execute(sql)
+    conexao.commit()
+    cursor.close()
+
+
+def inserir_em_lote(conexao, sql_insert, linhas):
     """
-    Insere um DataFrame do Pandas em lote no banco de dados.
+    Insere varias linhas de uma vez (mais rapido que uma a uma).
+    'linhas' e uma lista de tuplas; 'sql_insert' usa %s nos valores.
     """
-    engine = obter_engine(dbname)
-    
-    df.to_sql(
-        name=nome_tabela,
-        con=engine,
-        if_exists=se_existir,
-        index=False,
-        chunksize=5000
-    )
+    if not linhas:
+        return
+    cursor = conexao.cursor()
+    cursor.executemany(sql_insert, linhas)
+    conexao.commit()
+    cursor.close()

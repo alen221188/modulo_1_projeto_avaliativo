@@ -2,16 +2,25 @@
 -- CAMADA RAW (Dados Brutos do CSV)
 -- ==========================================
 
--- Tabela Raw Viagem
+-- As colunas seguem a MESMA ORDEM do CSV, renomeadas para snake_case.
+-- Tudo VARCHAR e sem constraints (a Raw guarda o conteudo bruto, sem tratar).
+
+-- Tabela Raw Viagem  (22 colunas = 2025_Viagem.csv)
 CREATE TABLE IF NOT EXISTS raw_viagem (
     id_viagem VARCHAR(255),
     num_proposta VARCHAR(255),
     situacao VARCHAR(255),
     viagem_urgente VARCHAR(255),
+    justificativa_urgencia VARCHAR(4000),
     cod_orgao_superior VARCHAR(255),
     nome_orgao_superior VARCHAR(255),
+    cod_orgao_solicitante VARCHAR(255),
+    nome_orgao_solicitante VARCHAR(255),
+    cpf_viajante VARCHAR(255),
     nome_viajante VARCHAR(255),
     cargo VARCHAR(255),
+    funcao VARCHAR(255),
+    descricao_funcao VARCHAR(255),
     data_inicio VARCHAR(255),
     data_fim VARCHAR(255),
     destinos VARCHAR(4000),
@@ -19,15 +28,13 @@ CREATE TABLE IF NOT EXISTS raw_viagem (
     valor_diarias VARCHAR(255),
     valor_passagens VARCHAR(255),
     valor_devolucao VARCHAR(255),
-    valor_outros_gastos VARCHAR(255),
-    -- Colunas extras contidas no CSV bruto
-    cpf_viajante VARCHAR(255),
-    funcao VARCHAR(255)
+    valor_outros_gastos VARCHAR(255)
 );
 
--- Tabela Raw Passagem
+-- Tabela Raw Passagem  (19 colunas = 2025_Passagem.csv)
 CREATE TABLE IF NOT EXISTS raw_passagem (
     id_viagem VARCHAR(255),
+    num_proposta VARCHAR(255),
     meio_transporte VARCHAR(255),
     pais_origem_ida VARCHAR(255),
     uf_origem_ida VARCHAR(255),
@@ -35,35 +42,48 @@ CREATE TABLE IF NOT EXISTS raw_passagem (
     pais_destino_ida VARCHAR(255),
     uf_destino_ida VARCHAR(255),
     cidade_destino_ida VARCHAR(255),
+    pais_origem_volta VARCHAR(255),
+    uf_origem_volta VARCHAR(255),
+    cidade_origem_volta VARCHAR(255),
+    pais_destino_volta VARCHAR(255),
+    uf_destino_volta VARCHAR(255),
+    cidade_destino_volta VARCHAR(255),
     valor_passagem VARCHAR(255),
     taxa_servico VARCHAR(255),
     data_emissao VARCHAR(255),
-    -- Coluna extra contida no CSV bruto
-    dados_de_volta_da_passagem VARCHAR(4000)
+    hora_emissao VARCHAR(255)
 );
 
--- Tabela Raw Pagamento
+-- Tabela Raw Pagamento  (10 colunas = 2025_Pagamento.csv)
 CREATE TABLE IF NOT EXISTS raw_pagamento (
     id_viagem VARCHAR(255),
     num_proposta VARCHAR(255),
+    cod_orgao_superior VARCHAR(255),
+    nome_orgao_superior VARCHAR(255),
+    cod_orgao_pagador VARCHAR(255),
     nome_orgao_pagador VARCHAR(255),
+    cod_ug_pagadora VARCHAR(255),
     nome_ug_pagadora VARCHAR(255),
     tipo_pagamento VARCHAR(255),
     valor VARCHAR(255)
 );
 
--- Tabela Raw Trecho
+-- Tabela Raw Trecho  (14 colunas = 2025_Trecho.csv)
 CREATE TABLE IF NOT EXISTS raw_trecho (
     id_viagem VARCHAR(255),
+    num_proposta VARCHAR(255),
     sequencia_trecho VARCHAR(255),
     origem_data VARCHAR(255),
+    origem_pais VARCHAR(255),
     origem_uf VARCHAR(255),
     origem_cidade VARCHAR(255),
     destino_data VARCHAR(255),
+    destino_pais VARCHAR(255),
     destino_uf VARCHAR(255),
     destino_cidade VARCHAR(255),
     meio_transporte VARCHAR(255),
-    numero_diarias VARCHAR(255)
+    numero_diarias VARCHAR(255),
+    missao VARCHAR(255)
 );
 
 
