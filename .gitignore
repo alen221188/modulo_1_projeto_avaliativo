@@ -16,3 +16,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .ipynb_checkpoints/
+
+# Material de estudo pessoal (não faz parte da entrega do projeto)
+MANUAL_PIPELINE_DE_DADOS.md
+MANUAL_PIPELINE_DE_DADOS.pdf
